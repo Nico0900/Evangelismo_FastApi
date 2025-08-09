@@ -1,11 +1,11 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from routers import images, user
 
-app = FastAPI (
-    title = "Evangelismo API"
-    description = "Esta api esta dedicada a..."
-)
+app = FastAPI()
 
+IMAGES_DIR = "images"
+app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+app.include_router(images.router)
+app.include_router(user.router)
