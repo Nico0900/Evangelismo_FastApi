@@ -44,3 +44,5 @@ def list_images_in_folder2(folder1: str, folder2: str):
         raise HTTPException(status_code=404, detail=f"Carpeta '{relative_path}' no encontrada")
     images = [{"name": f.split("/")[-1], "url": f"http://localhost:8000/images/{f}"} for f in files]
     return {"folder": relative_path, "images": images}
+
+
