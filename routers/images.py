@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 import os
 
 router = APIRouter(prefix="/list", tags=["images"])
@@ -46,3 +47,10 @@ def list_images_in_folder2(folder1: str, folder2: str):
     return {"folder": relative_path, "images": images}
 
 
+# endpoint para servir imágenes con CORS habilitado
+@router.get("/serve/{path:path}")
+async def serve_image(path: str):
+    file_path = os.path.join(IMAGES_DIR, path)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Imagen no encontrada")
+    return FileResponse(file_path, headers={"Access-Control-Allow-Origin": "*"})
