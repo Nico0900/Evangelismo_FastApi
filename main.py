@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from mangum import Mangum
 from routers import images, user, faq
 
 app = FastAPI()
@@ -25,3 +26,6 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 app.include_router(user.router)   # prefijo cambiado en user.py
 app.include_router(faq.router)    # prefijo cambiado en faq.py
 app.include_router(images.router) # prefijo cambiado en images.py
+
+
+handler = Mangum(app)

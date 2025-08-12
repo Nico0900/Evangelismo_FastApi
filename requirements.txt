@@ -1,4 +1,4 @@
-vercel-asgi
+mangum
 fastapi
 uvicorn[standard]
 pydantic[email]
