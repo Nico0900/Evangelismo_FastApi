@@ -4,7 +4,7 @@ import os
 from typing import List
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/archivos-imagenes", tags=["images"])
+router = APIRouter(prefix="/archivos-imagenes", tags=["Imagenes"])
 
 IMAGES_DIR = "images"
 image_extensions = (".png", ".jpg", ".jpeg", ".gif")

@@ -1,0 +1,29 @@
+{
+  "administrador": {
+    "id": 0,
+    "usuario": "nombre_admin",
+    "apellido": "apellido",
+    "contraseña": "123456",
+    "email": "admin@example.com",
+    "iglesia": "nombre iglesia",
+    "cargo_iglesia": "cargo opcional",
+    "cargo_zonal": "cargo opcional",
+    "cargo_nacional": "cargo opcional",
+    "rol": "rol del administrador"
+  }
+}
+
+
+{
+  "usuario": {
+    "id": 0,
+    "usuario": "nombre_usuario",
+    "apellido": "apellido",
+    "contraseña": "123456",
+    "email": "user@example.com",
+    "iglesia": "nombre iglesia",
+    "cargo_iglesia": "cargo opcional",
+    "cargo_zonal": "cargo opcional",
+    "cargo_nacional": "cargo opcional"
+  }
+}
