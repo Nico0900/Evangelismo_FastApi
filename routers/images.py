@@ -1,56 +1,94 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 import os
+from typing import List
+from pydantic import BaseModel
 
-router = APIRouter(prefix="/list", tags=["images"])
+router = APIRouter(prefix="/archivos-imagenes", tags=["images"])
 
 IMAGES_DIR = "images"
 image_extensions = (".png", ".jpg", ".jpeg", ".gif")
 
-def find_images(base_path):
+@router.get("/")
+def list_images():
     result = []
-    for root, dirs, files in os.walk(base_path):
+    for root, dirs, files in os.walk(IMAGES_DIR):
         for file in files:
             if file.lower().endswith(image_extensions):
                 full_path = os.path.join(root, file)
-                relative_path = os.path.relpath(full_path, IMAGES_DIR)
-                result.append(relative_path.replace("\\", "/"))
-    return result
+                relative_path = os.path.relpath(full_path, IMAGES_DIR).replace("\\", "/")
+                result.append({"name": file, "url": f"http://localhost:8000/images/{relative_path}"})
+    return {"images": result}
 
-def find_images_in_path(relative_path: str):
-    full_path = os.path.join(IMAGES_DIR, relative_path)
-    if not os.path.exists(full_path) or not os.path.isdir(full_path):
-        return None
-    return find_images(full_path)
-
-@router.get("/")
-def list_all_images():
-    files = find_images(IMAGES_DIR)
-    images = [{"name": f.split("/")[-1], "url": f"http://localhost:8000/images/{f}"} for f in files]
-    return {"images": images}
-
-@router.get("/{folder1}")
-def list_images_in_folder1(folder1: str):
-    files = find_images_in_path(folder1)
-    if files is None:
-        raise HTTPException(status_code=404, detail=f"Carpeta '{folder1}' no encontrada")
-    images = [{"name": f.split("/")[-1], "url": f"http://localhost:8000/images/{f}"} for f in files]
-    return {"folder": folder1, "images": images}
-
-@router.get("/{folder1}/{folder2}")
-def list_images_in_folder2(folder1: str, folder2: str):
-    relative_path = os.path.join(folder1, folder2)
-    files = find_images_in_path(relative_path)
-    if files is None:
-        raise HTTPException(status_code=404, detail=f"Carpeta '{relative_path}' no encontrada")
-    images = [{"name": f.split("/")[-1], "url": f"http://localhost:8000/images/{f}"} for f in files]
-    return {"folder": relative_path, "images": images}
-
-
-# endpoint para servir imágenes con CORS habilitado
 @router.get("/serve/{path:path}")
-async def serve_image(path: str):
+def serve_image(path: str):
     file_path = os.path.join(IMAGES_DIR, path)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Imagen no encontrada")
     return FileResponse(file_path, headers={"Access-Control-Allow-Origin": "*"})
+
+@router.post("/")
+async def upload_image(file: UploadFile = File(...), folder: str = Form("")):
+    save_dir = os.path.join(IMAGES_DIR, folder)
+    os.makedirs(save_dir, exist_ok=True)
+
+    filename = file.filename
+    if not filename.lower().endswith(image_extensions):
+        raise HTTPException(status_code=400, detail="Formato de imagen no permitido")
+
+    save_path = os.path.join(save_dir, filename)
+    if os.path.exists(save_path):
+        raise HTTPException(status_code=400, detail="Archivo ya existe")
+
+    contents = await file.read()
+    with open(save_path, "wb") as f:
+        f.write(contents)
+
+    relative_path = os.path.relpath(save_path, IMAGES_DIR).replace("\\", "/")
+    return {"message": "Imagen subida", "url": f"http://localhost:8000/images/{relative_path}"}
+
+@router.put("/rename")
+def rename_image(old_path: str = Form(...), new_name: str = Form(...)):
+    old_full_path = os.path.join(IMAGES_DIR, old_path)
+    if not os.path.exists(old_full_path):
+        raise HTTPException(status_code=404, detail="Imagen original no encontrada")
+
+    if not new_name.lower().endswith(image_extensions):
+        raise HTTPException(status_code=400, detail="Nuevo nombre debe tener extensión válida")
+
+    new_full_path = os.path.join(os.path.dirname(old_full_path), new_name)
+    if os.path.exists(new_full_path):
+        raise HTTPException(status_code=400, detail="Ya existe un archivo con el nuevo nombre")
+
+    os.rename(old_full_path, new_full_path)
+    relative_path = os.path.relpath(new_full_path, IMAGES_DIR).replace("\\", "/")
+    return {"message": "Imagen renombrada", "url": f"http://localhost:8000/images/{relative_path}"}
+
+@router.delete("/")
+def delete_image(path: str):
+    full_path = os.path.join(IMAGES_DIR, path)
+    if not os.path.exists(full_path):
+        raise HTTPException(status_code=404, detail="Imagen no encontrada")
+    os.remove(full_path)
+    return {"message": f"Imagen '{path}' eliminada"}
+
+class DeleteImagesRequest(BaseModel):
+    paths: List[str]
+
+@router.post("/delete-multiple")
+def delete_multiple_images(request: DeleteImagesRequest):
+    eliminadas = []
+    no_encontradas = []
+
+    for path in request.paths:
+        full_path = os.path.join(IMAGES_DIR, path)
+        if os.path.exists(full_path):
+            os.remove(full_path)
+            eliminadas.append(path)
+        else:
+            no_encontradas.append(path)
+
+    return {
+        "eliminadas": eliminadas,
+        "no_encontradas": no_encontradas
+    }

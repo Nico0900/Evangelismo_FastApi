@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List, Union
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(prefix="/personas", tags=["personas"])
 
 # Modelos Pydantic
 class UsuarioBase(BaseModel):
@@ -21,74 +21,98 @@ class Usuario(UsuarioBase):
 class Administrador(UsuarioBase):
     rol: str = Field(..., description="Rol del administrador")
 
-# Persona que puede ser Usuario o Administrador
 class Persona(BaseModel):
     usuario: Optional[Usuario] = None
     administrador: Optional[Administrador] = None
 
-# "Base de datos" simulada en memoria
 usuarios_db: List[Union[Usuario, Administrador]] = []
 
-@router.post("/register", response_model=Persona)
-def register_persona(persona: Persona):
-    # Validar que venga uno solo (usuario o administrador)
+@router.post("/", response_model=Persona)
+def create_persona(persona: Persona):
     if (persona.usuario is None and persona.administrador is None) or \
        (persona.usuario is not None and persona.administrador is not None):
         raise HTTPException(status_code=400, detail="Debe enviar solo usuario o administrador")
 
-    if persona.usuario:
-        if any(u.id == persona.usuario.id for u in usuarios_db):
-            raise HTTPException(status_code=400, detail="ID de usuario ya registrado")
-        if any(u.email == persona.usuario.email for u in usuarios_db):
-            raise HTTPException(status_code=400, detail="Email ya registrado")
-        usuarios_db.append(persona.usuario)
-        return {"usuario": persona.usuario}
+    nuevo = persona.usuario or persona.administrador
+    if any(u.id == nuevo.id for u in usuarios_db):
+        raise HTTPException(status_code=400, detail="ID ya registrado")
+    if any(u.email == nuevo.email for u in usuarios_db):
+        raise HTTPException(status_code=400, detail="Email ya registrado")
 
-    if persona.administrador:
-        if any(u.id == persona.administrador.id for u in usuarios_db):
-            raise HTTPException(status_code=400, detail="ID de administrador ya registrado")
-        if any(u.email == persona.administrador.email for u in usuarios_db):
-            raise HTTPException(status_code=400, detail="Email ya registrado")
-        usuarios_db.append(persona.administrador)
-        return {"administrador": persona.administrador}
+    usuarios_db.append(nuevo)
+    return persona
 
 @router.get("/")
 def list_all_users():
     return usuarios_db
 
-# Nuevo endpoint para filtrar usuarios o administradores
 @router.get("/filter")
-def filter_users(tipo: str = Query(..., regex="^(usuario|administrador)$", description="Filtrar por usuario o administrador")):
+def filter_users(tipo: str = Query(..., regex="^(usuario|administrador)$")):
     if tipo == "usuario":
         return [u for u in usuarios_db if isinstance(u, Usuario)]
-    elif tipo == "administrador":
+    else:
         return [u for u in usuarios_db if isinstance(u, Administrador)]
 
-# POST
+@router.get("/{user_id}")
+def get_user(user_id: int):
+    for u in usuarios_db:
+        if u.id == user_id:
+            return u
+    raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-# Usuario
-# {
-#   "usuario": {
-#     "id": 1,
-#     "usuario": "juanperez",
-#     "contraseña": "123456",
-#     "email": "juan@example.com",
-#     "iglesia": "Iglesia Central"
-#   }
-# }
+@router.put("/{user_id}")
+def update_user(user_id: int, persona: Persona):
+    if (persona.usuario is None and persona.administrador is None) or \
+       (persona.usuario is not None and persona.administrador is not None):
+        raise HTTPException(status_code=400, detail="Debe enviar solo usuario o administrador")
 
-# Admin
-# {
-#   "administrador": {
-#     "id": 2,
-#     "rol": "admin",
-#     "usuario": "admin01",
-#     "contraseña": "adminpass",
-#     "email": "admin@example.com",
-#     "iglesia": "Iglesia Central",
-#     "cargo_iglesia": "Pastor",
-#     "cargo_zonal": "Coordinador",
-#     "cargo_nacional": "Líder"
-#   }
-# }
+    for i, u in enumerate(usuarios_db):
+        if u.id == user_id:
+            nuevo = persona.usuario or persona.administrador
 
+            if any(existing.email == nuevo.email and existing.id != user_id for existing in usuarios_db):
+                raise HTTPException(status_code=400, detail="Email ya registrado por otro usuario")
+
+            usuarios_db[i] = nuevo
+            return nuevo
+
+    raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+@router.delete("/{user_id}")
+def delete_user(user_id: int):
+    for i, u in enumerate(usuarios_db):
+        if u.id == user_id:
+            del usuarios_db[i]
+            return {"message": "Usuario eliminado correctamente"}
+    raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+from pydantic import BaseModel
+from typing import List
+
+class DeleteUsersRequest(BaseModel):
+    ids: List[int]
+
+@router.post("/delete-multiple")
+def delete_multiple_users(request: DeleteUsersRequest):
+    ids_a_eliminar = set(request.ids)
+    eliminados = []
+    no_encontrados = []
+
+    global usuarios_db
+    usuarios_restantes = []
+
+    for usuario in usuarios_db:
+        if usuario.id in ids_a_eliminar:
+            eliminados.append(usuario.id)
+        else:
+            usuarios_restantes.append(usuario)
+
+    no_encontrados = list(ids_a_eliminar - set(eliminados))
+
+    usuarios_db.clear()
+    usuarios_db.extend(usuarios_restantes)
+
+    return {
+        "eliminados": eliminados,
+        "no_encontrados": no_encontrados
+    }

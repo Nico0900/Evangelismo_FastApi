@@ -22,6 +22,6 @@ app.add_middleware(
 IMAGES_DIR = "images"
 app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
-app.include_router(images.router)
-app.include_router(user.router)
-app.include_router(faq.router)
+app.include_router(user.router)   # prefijo cambiado en user.py
+app.include_router(faq.router)    # prefijo cambiado en faq.py
+app.include_router(images.router) # prefijo cambiado en images.py
