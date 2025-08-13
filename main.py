@@ -20,12 +20,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# IMAGES_DIR = "images"
-# app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
+IMAGES_DIR = "images"
+app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
-# app.include_router(user.router)   # prefijo cambiado en user.py
-# app.include_router(faq.router)    # prefijo cambiado en faq.py
-# app.include_router(images.router) # prefijo cambiado en images.py
+app.include_router(user.router)   # prefijo cambiado en user.py
+app.include_router(faq.router)    # prefijo cambiado en faq.py
+app.include_router(images.router) # prefijo cambiado en images.py
 
 
 handler = Mangum(app)
