@@ -1,5 +1,5 @@
 #key projects aws
-key-api-evangelismo1.pem
+key/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
