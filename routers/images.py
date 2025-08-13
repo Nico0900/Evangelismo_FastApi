@@ -9,6 +9,9 @@ router = APIRouter(prefix="/archivos-imagenes", tags=["Imagenes"])
 IMAGES_DIR = "images"
 image_extensions = (".png", ".jpg", ".jpeg", ".gif")
 
+# Base URL configurable por variable de entorno
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+
 @router.get("/")
 def list_images():
     result = []
@@ -17,7 +20,7 @@ def list_images():
             if file.lower().endswith(image_extensions):
                 full_path = os.path.join(root, file)
                 relative_path = os.path.relpath(full_path, IMAGES_DIR).replace("\\", "/")
-                result.append({"name": file, "url": f"http://localhost:8000/images/{relative_path}"})
+                result.append({"name": file, "url": f"{BASE_URL}/images/{relative_path}"})
     return {"images": result}
 
 @router.get("/serve/{path:path}")
@@ -45,7 +48,7 @@ async def upload_image(file: UploadFile = File(...), folder: str = Form("")):
         f.write(contents)
 
     relative_path = os.path.relpath(save_path, IMAGES_DIR).replace("\\", "/")
-    return {"message": "Imagen subida", "url": f"http://localhost:8000/images/{relative_path}"}
+    return {"message": "Imagen subida", "url": f"{BASE_URL}/images/{relative_path}"}
 
 @router.put("/rename")
 def rename_image(old_path: str = Form(...), new_name: str = Form(...)):
@@ -62,7 +65,7 @@ def rename_image(old_path: str = Form(...), new_name: str = Form(...)):
 
     os.rename(old_full_path, new_full_path)
     relative_path = os.path.relpath(new_full_path, IMAGES_DIR).replace("\\", "/")
-    return {"message": "Imagen renombrada", "url": f"http://localhost:8000/images/{relative_path}"}
+    return {"message": "Imagen renombrada", "url": f"{BASE_URL}/images/{relative_path}"}
 
 @router.delete("/")
 def delete_image(path: str):
